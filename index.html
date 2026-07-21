@@ -356,7 +356,7 @@
         <button type="button" class="link" id="goSignUp">Create account</button>
         <button type="button" class="link" id="goForgot">Forgot password?</button>
       </div>
-      <div class="msg error" id="siError"></div>
+      <div class="msg" id="siError"></div>
     </form>
   </div>
 </section>
@@ -366,7 +366,7 @@
   <div class="card">
     <div class="brand"><span class="mark"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="15" fill="var(--accent)"/><path d="M2.5,11 C9,17 9,17 15,17.5" stroke="#fff" stroke-width="1.6" fill="none" opacity="0.9"/><path d="M29.5,21 C23,15 23,15 17,14.5" stroke="#fff" stroke-width="1.6" fill="none" opacity="0.9"/></svg></span><span class="name">Tennis Signups</span></div>
     <h1>Create account</h1>
-    <p class="sub">We'll email you a link to verify before you can sign in.</p>
+    <p class="sub">Pick a password and you're in.</p>
     <div class="court-rule"><span></span></div>
     <form id="signUpForm">
       <label for="suEmail">Email</label>
@@ -468,7 +468,7 @@ $("signUpForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = $("suEmail").value.trim();
   const password = $("suPassword").value;
-  const { error } = await sb.auth.signUp({
+  const { data, error } = await sb.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: location.origin + location.pathname }
@@ -476,7 +476,16 @@ $("signUpForm").addEventListener("submit", async (e) => {
   const msgEl = $("suMsg");
   if (error) {
     showMsg(msgEl, error.message, "error");
+    return;
+  }
+  if (data.session) {
+    // Email confirmation is off in Supabase, so signUp already returned
+    // a live session — skip the "check your inbox" step entirely.
+    $("signUpForm").reset();
+    await afterLogin();
   } else {
+    // Email confirmation is still on for this project — fall back to
+    // the verify-by-email flow.
     showMsg(msgEl, "Check your inbox for a verification link, then sign in.", "ok");
     $("signUpForm").reset();
   }
