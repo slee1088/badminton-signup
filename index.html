@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger</title>
+<style>
+  :root {
+    --ink: #1c1f1d;
+    --paper: #f6f4ef;
+    --line: #d8d3c6;
+    --accent: #3f6b4a;
+    --accent-dim: #6c8f76;
+    --err: #a13d3d;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+  .screen {
+    display: none;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 32px;
+  }
+  .card h1 {
+    font-size: 1.3rem;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .card p.sub {
+    margin: 0 0 24px;
+    color: #6b6f6c;
+    font-size: 0.9rem;
+  }
+  label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b6f6c;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: var(--sans);
+    background: #fff;
+  }
+  input:focus { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+  button.primary {
+    width: 100%;
+    margin-top: 24px;
+    padding: 11px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:hover { background: #345a3d; }
+  button.link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .row-links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18px;
+  }
+  .msg {
+    display: none;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .msg.error { background: #f6e6e6; color: var(--err); display: block; }
+  .msg.ok { background: #e8f0ea; color: var(--accent); display: block; }
+
+  /* table screen */
+  #tableScreen { display: none; flex-direction: column; padding: 0; align-items: stretch; }
+  header.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+  header.topbar .title { font-weight: 600; }
+  header.topbar .who { font-size: 0.8rem; color: #6b6f6c; }
+  header.topbar .actions { display: flex; gap: 10px; align-items: center; }
+  button.ghost {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  button.ghost:hover { background: var(--paper); }
+  main.tablewrap { padding: 24px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+  th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6b6f6c; background: #fafaf7; }
+  td.rownum { color: #a3a79f; font-family: var(--mono); width: 32px; }
+  td.ts { font-family: var(--mono); font-size: 0.8rem; color: #6b6f6c; white-space: nowrap; }
+  td input { width: 100%; border: 1px solid transparent; background: transparent; padding: 4px 6px; border-radius: 4px; font-family: var(--sans); font-size: 0.9rem; }
+  td input:focus { border-color: var(--line); background: #fff; }
+  .del-cell { width: 36px; text-align: center; }
+  .del-btn { background: none; border: none; color: #a3a79f; cursor: pointer; font-size: 0.95rem; }
+  .del-btn:hover { color: var(--err); }
+  #addRowBtn { margin-top: 16px; }
+  #loadingMsg { padding: 40px; text-align: center; color: #6b6f6c; }
+  .stamp {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+  .stamp.saving { color: #6b6f6c; }
+  .stamp.error { color: var(--err); }
+  .stamp.hidden { visibility: hidden; }
+</style>
+</head>
+<body>
+
+<!-- ================= SIGN IN ================= -->
+<section id="signInScreen" class="screen">
+  <div class="card">
+    <h1>Sign in</h1>
+    <p class="sub">Welcome back.</p>
+    <form id="signInForm">
+      <label for="siEmail">Email</label>
+      <input type="email" id="siEmail" required autocomplete="email">
+      <label for="siPassword">Password</label>
+      <input type="password" id="siPassword" required autocomplete="current-password">
+      <button class="primary" type="submit">Sign in</button>
+      <div class="row-links">
+        <button type="button" class="link" id="goSignUp">Create account</button>
+        <button type="button" class="link" id="goForgot">Forgot password?</button>
+      </div>
+      <div class="msg error" id="siError"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ================= SIGN UP ================= -->
+<section id="signUpScreen" class="screen">
+  <div class="card">
+    <h1>Create account</h1>
+    <p class="sub">We'll email you a link to verify before you can sign in.</p>
+    <form id="signUpForm">
+      <label for="suEmail">Email</label>
+      <input type="email" id="suEmail" required autocomplete="email">
+      <label for="suPassword">Password</label>
+      <input type="password" id="suPassword" required minlength="8" autocomplete="new-password">
+      <button class="primary" type="submit">Create account</button>
+      <div class="row-links">
+        <button type="button" class="link" id="backToSignIn1">Back to sign in</button>
+        <span></span>
+      </div>
+      <div class="msg" id="suMsg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ================= FORGOT PASSWORD ================= -->
+<section id="forgotScreen" class="screen">
+  <div class="card">
+    <h1>Reset password</h1>
+    <p class="sub">Enter your email and we'll send a reset link.</p>
+    <form id="forgotForm">
+      <label for="fpEmail">Email</label>
+      <input type="email" id="fpEmail" required autocomplete="email">
+      <button class="primary" type="submit">Send reset link</button>
+      <div class="row-links">
+        <button type="button" class="link" id="backToSignIn2">Back to sign in</button>
+        <span></span>
+      </div>
+      <div class="msg" id="fpMsg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- ================= TABLE ================= -->
+<section id="tableScreen" class="screen">
+  <header class="topbar">
+    <div>
+      <div class="title">Ledger</div>
+      <div class="who" id="whoAmI"></div>
+    </div>
+    <div class="actions">
+      <span class="stamp hidden" id="stamp"></span>
+      <button class="ghost" id="logoutBtn">Sign out</button>
+    </div>
+  </header>
+  <main class="tablewrap">
+    <div id="loadingMsg">Loading…</div>
+    <table id="dataTable" style="display:none;">
+      <thead>
+        <tr>
+          <th class="rownum">#</th>
+          <th>Match</th>
+          <th>Score</th>
+          <th>Notes</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <button class="ghost" id="addRowBtn" style="display:none;">＋ Add row</button>
+  </main>
+</section>
+
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ============================================================
+// 1) Fill these in from Supabase Dashboard → Project Settings → API
+// ============================================================
+const SUPABASE_URL = "https://okqljdzviscpjujbedyu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_P7wolQLVaigElk3-NruNGg_vtp4pQNd";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+
+function showScreen(id) {
+  ["signInScreen", "signUpScreen", "forgotScreen", "tableScreen"].forEach(s => {
+    $(s).style.display = (s === id) ? "flex" : "none";
+  });
+}
+function showMsg(el, text, kind) {
+  el.textContent = text;
+  el.className = "msg " + kind;
+}
+
+// ---------- nav between auth screens ----------
+$("goSignUp").addEventListener("click", () => showScreen("signUpScreen"));
+$("goForgot").addEventListener("click", () => showScreen("forgotScreen"));
+$("backToSignIn1").addEventListener("click", () => showScreen("signInScreen"));
+$("backToSignIn2").addEventListener("click", () => showScreen("signInScreen"));
+
+// ---------- sign up ----------
+$("signUpForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("suEmail").value.trim();
+  const password = $("suPassword").value;
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: location.origin + location.pathname }
+  });
+  const msgEl = $("suMsg");
+  if (error) {
+    showMsg(msgEl, error.message, "error");
+  } else {
+    showMsg(msgEl, "Check your inbox for a verification link, then sign in.", "ok");
+    $("signUpForm").reset();
+  }
+});
+
+// ---------- forgot password ----------
+$("forgotForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("fpEmail").value.trim();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname.replace(/index\.html$/, "") + "reset-password.html"
+  });
+  const msgEl = $("fpMsg");
+  if (error) {
+    showMsg(msgEl, error.message, "error");
+  } else {
+    showMsg(msgEl, "If that email has an account, a reset link is on its way.", "ok");
+  }
+});
+
+// ---------- sign in ----------
+$("signInForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("siEmail").value.trim();
+  const password = $("siPassword").value;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    showMsg($("siError"), error.message, "error");
+  } else {
+    $("siError").style.display = "none";
+    await afterLogin();
+  }
+});
+
+// ---------- logout ----------
+$("logoutBtn").addEventListener("click", async () => {
+  await supabase.auth.signOut();
+  showScreen("signInScreen");
+});
+
+// ---------- session bootstrap ----------
+let me = null;       // current auth user
+let myRole = null;   // "standard" | "admin"
+
+async function afterLogin() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) { showScreen("signInScreen"); return; }
+  me = user;
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  myRole = (!error && profile) ? profile.role : "standard";
+  $("whoAmI").textContent = `${user.email} · ${myRole}`;
+  $("addRowBtn").textContent = myRole === "admin" ? "＋ Add row" : "＋ Add myself";
+
+  showScreen("tableScreen");
+  loadData();
+}
+
+// ---------- data ----------
+let rows = [];
+
+async function loadData() {
+  $("loadingMsg").style.display = "block";
+  $("dataTable").style.display = "none";
+  $("addRowBtn").style.display = "none";
+
+  const { data, error } = await supabase
+    .from("ledger")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  rows = error ? [] : data;
+  render();
+
+  $("loadingMsg").style.display = "none";
+  $("dataTable").style.display = "table";
+  $("addRowBtn").style.display = "inline-block";
+}
+
+function escapeAttr(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+function fmtTs(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function render() {
+  const tbody = $("tbody");
+  tbody.innerHTML = "";
+  const isAdmin = myRole === "admin";
+
+  rows.forEach((row, i) => {
+    const tr = document.createElement("tr");
+    if (isAdmin) {
+      tr.innerHTML = `
+        <td class="rownum">${i + 1}</td>
+        <td><input data-id="${row.id}" data-field="match" value="${escapeAttr(row.match)}"></td>
+        <td><input data-id="${row.id}" data-field="score" value="${escapeAttr(row.score)}"></td>
+        <td><input data-id="${row.id}" data-field="notes" value="${escapeAttr(row.notes)}"></td>
+        <td class="ts">${fmtTs(row.created_at)}</td>
+        <td class="del-cell"><button class="del-btn" data-id="${row.id}">✕</button></td>
+      `;
+    } else {
+      // standard users: plain selectable text, no inputs, no delete
+      tr.innerHTML = `
+        <td class="rownum">${i + 1}</td>
+        <td>${escapeAttr(row.match)}</td>
+        <td>${escapeAttr(row.score)}</td>
+        <td>${escapeAttr(row.notes)}</td>
+        <td class="ts">${fmtTs(row.created_at)}</td>
+        <td></td>
+      `;
+    }
+    tbody.appendChild(tr);
+  });
+
+  if (isAdmin) {
+    tbody.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("change", async (e) => {
+        const id = e.target.dataset.id;
+        const field = e.target.dataset.field;
+        showStamp("saving", "Saving…");
+        const { error } = await supabase
+          .from("ledger")
+          .update({ [field]: e.target.value })
+          .eq("id", id);
+        showStamp(error ? "error" : "ok", error ? "Save failed" : "Saved");
+      });
+    });
+    tbody.querySelectorAll(".del-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const id = e.target.dataset.id;
+        showStamp("saving", "Deleting…");
+        const { error } = await supabase.from("ledger").delete().eq("id", id);
+        if (!error) rows = rows.filter(r => String(r.id) !== String(id));
+        render();
+        showStamp(error ? "error" : "ok", error ? "Delete failed" : "Deleted");
+      });
+    });
+  }
+}
+
+// "Add row" (admin) / "Add myself" (standard) — same button, different payload.
+$("addRowBtn").addEventListener("click", async () => {
+  showStamp("saving", "Adding…");
+  const payload = myRole === "admin"
+    ? { match: "", score: "", notes: "", added_by: me.id, added_by_email: me.email }
+    : { match: me.email, score: "", notes: "", added_by: me.id, added_by_email: me.email };
+
+  const { data, error } = await supabase
+    .from("ledger")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (!error) {
+    rows.push(data);
+    render();
+  }
+  showStamp(error ? "error" : "ok", error ? "Add failed" : "Added");
+});
+
+let stampTimer = null;
+function showStamp(kind, text) {
+  const el = $("stamp");
+  el.textContent = text;
+  el.classList.remove("hidden", "saving", "error");
+  if (kind === "saving") el.classList.add("saving");
+  if (kind === "error") el.classList.add("error");
+  clearTimeout(stampTimer);
+  if (kind !== "saving") {
+    stampTimer = setTimeout(() => el.classList.add("hidden"), 1800);
+  }
+}
+
+// ---------- boot ----------
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await afterLogin();
+  } else {
+    showScreen("signInScreen");
+  }
+})();
+
+// Keep UI in sync if the session changes in another tab, or expires.
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT") showScreen("signInScreen");
+});
+</script>
+</body>
+</html>
