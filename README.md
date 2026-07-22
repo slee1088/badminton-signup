@@ -64,16 +64,7 @@ This creates:
 - RLS policies enforcing: everyone can read, everyone can insert as
   themselves, only admins can update/delete
 
-## 3. Turn off (or configure) email confirmation
-
-Under **Authentication → Providers → Email**, "Confirm email" is on by
-default. This build currently runs with it **off**, so new users are signed
-in immediately after creating an account — no verification step. If you'd
-rather require verification, turn it back on; the app already handles both
-cases (it checks whether Supabase returns a session immediately, and only
-shows the "check your inbox" message if it doesn't).
-
-## 4. Custom SMTP (using Gmail)
+## 3. Custom SMTP (using Gmail)
 
 Supabase's built-in email sender is rate-limited and not meant for real use
 — it will return a `500` error on signup or password reset once you exceed
@@ -105,7 +96,7 @@ Gmail itself has its own daily sending caps (a few hundred emails/day on a
 regular account), which is more than enough for a club sign-up sheet but
 worth knowing if usage ever grows significantly.
 
-## 5. Get your API keys and wire them in
+## 4. Get your API keys and wire them in
 
 **Project Settings → API** in Supabase. Copy the **Project URL** and the
 **anon / publishable** key, then paste both into the top of the `<script>`
@@ -116,7 +107,7 @@ const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
 const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
 ```
 
-## 6. Host the files
+## 5. Host the files
 
 This project is hosted on **GitHub Pages**. In general, any static host
 works (Netlify, Vercel, S3, etc.) — the key requirement is that
@@ -134,7 +125,7 @@ If using GitHub Pages:
    (this is the fix for the `localhost:3000` redirect issue encountered
    earlier).
 
-## 7. Make yourself an admin
+## 6. Make yourself an admin
 
 After signing up through the app once, run this in the SQL Editor (with
 your own email):
