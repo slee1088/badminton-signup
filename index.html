@@ -617,14 +617,16 @@ function render() {
         <td class="del-cell"><button class="del-btn" data-id="${row.id}">✕</button></td>
       `;
     } else {
-      // standard users: plain selectable text, no inputs, no delete
+      // standard users: plain selectable text, no inputs to edit —
+      // but they can remove their own row (and only their own).
+      const isMine = row.added_by === me.id;
       tr.innerHTML = `
         <td class="rownum"><span>${i + 1}</span></td>
         <td>${escapeAttr(row.match)}</td>
         <td>${escapeAttr(row.score)}</td>
         <td>${escapeAttr(row.notes)}</td>
         <td class="ts">${fmtTs(row.created_at)}</td>
-        <td></td>
+        <td class="del-cell">${isMine ? `<button class="del-btn" data-id="${row.id}">✕</button>` : ""}</td>
       `;
     }
     tbody.appendChild(tr);
@@ -650,17 +652,22 @@ function render() {
         showStamp(error ? "error" : "ok", error ? "Save failed" : "Saved");
       });
     });
-    tbody.querySelectorAll(".del-btn").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        const id = e.target.dataset.id;
-        showStamp("saving", "Deleting…");
-        const { error } = await sb.from("ledger").delete().eq("id", id);
-        if (!error) rows = rows.filter(r => String(r.id) !== String(id));
-        render();
-        showStamp(error ? "error" : "ok", error ? "Delete failed" : "Deleted");
-      });
-    });
   }
+
+  // Delete buttons exist for admins (every row) and standard users (their
+  // own row only) — same handler either way, since the database's RLS
+  // policies enforce who's actually allowed to delete what.
+  tbody.querySelectorAll(".del-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const id = e.target.dataset.id;
+      showStamp("saving", "Deleting…");
+      const { error } = await sb.from("ledger").delete().eq("id", id);
+      if (!error) rows = rows.filter(r => String(r.id) !== String(id));
+      render();
+      updateAddButtonState(); // a standard user who just removed themself can sign up again
+      showStamp(error ? "error" : "ok", error ? "Delete failed" : "Deleted");
+    });
+  });
 }
 
 // "Add row" (admin) / "Sign me up" (standard, once only) — same button, different payload.
