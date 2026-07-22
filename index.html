@@ -481,10 +481,29 @@ $("signUpForm").addEventListener("submit", async (e) => {
     options: { emailRedirectTo: location.origin + location.pathname }
   });
   const msgEl = $("suMsg");
+
   if (error) {
-    showMsg(msgEl, error.message, "error");
+    // With "Confirm email" off (as this project has it), signing up with
+    // an existing email comes back as a real, readable error like "User
+    // already registered" — show that clearly instead of Supabase's raw
+    // wording.
+    const alreadyExists = /already registered|already exists|already been registered/i.test(error.message);
+    showMsg(msgEl, alreadyExists
+      ? "An account with this email already exists. Try signing in instead."
+      : error.message, "error");
     return;
   }
+
+  // If "Confirm email" is ever turned back on in Supabase, signing up with
+  // an existing email doesn't return an error at all — Supabase silently
+  // returns a fake user object (no session, and an empty identities list)
+  // to avoid leaking whether the account exists. Catch that case too.
+  const isObfuscatedExistingUser = data.user && !data.session && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+  if (isObfuscatedExistingUser) {
+    showMsg(msgEl, "An account with this email already exists. Try signing in instead.", "error");
+    return;
+  }
+
   if (data.session) {
     // Email confirmation is off in Supabase, so signUp already returned
     // a live session — skip the "check your inbox" step entirely.
