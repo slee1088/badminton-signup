@@ -640,6 +640,13 @@ function render() {
           .from("ledger")
           .update({ [field]: e.target.value })
           .eq("id", id);
+        if (!error) {
+          // Keep our in-memory copy in sync with what we just saved,
+          // so a later render() (e.g. from clicking "Add row") doesn't
+          // redraw this cell from stale data and wipe the edit.
+          const row = rows.find(r => String(r.id) === String(id));
+          if (row) row[field] = e.target.value;
+        }
         showStamp(error ? "error" : "ok", error ? "Save failed" : "Saved");
       });
     });
