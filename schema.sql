@@ -99,8 +99,18 @@ create policy "ledger: admin delete"
   to authenticated
   using (public.is_admin(auth.uid()));
 
+-- A standard user can also delete their own signup row (but no one else's).
+-- Postgres OR's multiple policies for the same action together, so this
+-- adds an additional allowed case on top of "admin delete" above, rather
+-- than replacing it.
+create policy "ledger: delete own row"
+  on public.ledger for delete
+  to authenticated
+  using (added_by = auth.uid());
+
 -- ---------- make yourself an admin ----------
 -- After you sign up through the app once, run this (with your own
 -- email) to promote yourself. Do this for every admin you want.
 --
 -- update public.profiles set role = 'admin' where email = 'you@example.com';
+
